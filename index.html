@@ -192,7 +192,7 @@
     background:none;
     cursor:pointer;
     transform: translate3d(-50%,-50%,0) rotate(0deg);
-    transition: left .3s cubic-bezier(.16,1,.3,1), top .3s cubic-bezier(.16,1,.3,1);
+    transition: left .16s cubic-bezier(.16,1,.3,1), top .16s cubic-bezier(.16,1,.3,1);
     filter: drop-shadow(0 14px 18px rgba(0,0,0,.38));
     touch-action: manipulation;
   }
@@ -210,7 +210,7 @@
     0%,100%{ transform: rotate(-3deg); }
     50%{ transform: rotate(3deg); }
   }
-  .gift.fleeing .box-wrap{ animation-duration: .4s, .55s; }
+  .gift.fleeing .box-wrap{ animation-duration: .2s, .28s; }
   .gift.caught{ transition:none; }
 
   .tally{
@@ -447,7 +447,7 @@
 
   var GIFT_SIZE = 108;
   var dodges = 0;
-  var maxForced = 14;
+  var maxForced = 28;
   var caught = false;
   var lastMove = 0;
 
@@ -565,7 +565,7 @@
   function scheduleAutoMove(){
     clearTimeout(moveTimer);
     if(caught || reduceMotion || dodges >= maxForced) return;
-    var delay = 420 + Math.random()*180;
+    var delay = 210 + Math.random()*90;
     moveTimer = setTimeout(function(){
       if(caught || dodges >= maxForced) return;
       lastMove = Date.now();
