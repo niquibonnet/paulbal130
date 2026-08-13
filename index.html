@@ -529,6 +529,18 @@
     return { x: r.left - ar.left + r.width/2, y: r.top - ar.top + r.height/2 };
   }
 
+  function hop(avoidPoint){
+    dodges++;
+    gift.classList.add('fleeing');
+    var np = randomPos(avoidPoint);
+    var b = bounds();
+    np.x = Math.min(Math.max(np.x,b.minX), b.maxX);
+    np.y = Math.min(Math.max(np.y,b.minY), b.maxY);
+    place(np.x, np.y);
+    updateTally();
+    setTimeout(function(){ gift.classList.remove('fleeing'); }, 500);
+  }
+
   function tryDodge(px, py){
     if(caught || reduceMotion) return;
     var now = Date.now();
@@ -540,17 +552,26 @@
       var chance = Math.max(0, 0.96 - dodges*0.14);
       if(Math.random() < chance || dodges < 2){
         lastMove = now;
-        dodges++;
-        gift.classList.add('fleeing');
-        var np = randomPos(c);
-        var b = bounds();
-        np.x = Math.min(Math.max(np.x,b.minX), b.maxX);
-        np.y = Math.min(Math.max(np.y,b.minY), b.maxY);
-        place(np.x, np.y);
-        updateTally();
-        setTimeout(function(){ gift.classList.remove('fleeing'); }, 500);
+        hop(c);
+        scheduleAutoMove();
       }
     }
+  }
+
+  // The gift also wanders on its own timer, on top of fleeing an approaching
+  // pointer — that's what makes it hard to pin down on touch devices, where
+  // there's no cursor to dodge in the first place.
+  var moveTimer = null;
+  function scheduleAutoMove(){
+    clearTimeout(moveTimer);
+    if(caught || reduceMotion || dodges >= maxForced) return;
+    var delay = 850 + Math.random()*750;
+    moveTimer = setTimeout(function(){
+      if(caught || dodges >= maxForced) return;
+      lastMove = Date.now();
+      hop();
+      scheduleAutoMove();
+    }, delay);
   }
 
   function updateTally(){
@@ -616,6 +637,7 @@
   function catchGift(){
     if(caught) return;
     caught = true;
+    clearTimeout(moveTimer);
     gift.classList.add('caught');
     hintNote.style.opacity = '0';
     spawnConfetti();
@@ -691,6 +713,7 @@
     ], { duration:420, easing:'cubic-bezier(.16,1,.3,1)' });
     var np = randomPos();
     place(np.x, np.y);
+    scheduleAutoMove();
   });
 
   window.addEventListener('resize', function(){
@@ -705,5 +728,6 @@
   });
 
   updateTally();
+  scheduleAutoMove();
 })();
 </script>
