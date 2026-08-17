@@ -125,6 +125,11 @@ function render() {
   else if (mPlayer) renderPlayer(decodeURIComponent(mPlayer[1]));
   else renderHome();
 
+  const active = route === "#/stats" ? "stats" : route === "#/historique" ? "log" : "home";
+  document.querySelectorAll("#mainnav a").forEach((a) =>
+    a.classList.toggle("active", a.dataset.nav === active)
+  );
+
   window.scrollTo(0, keepScroll);
 }
 
@@ -156,17 +161,7 @@ function renderHome() {
 
   $view.innerHTML = `
     ${podium}
-    <div class="ranking">${list}</div>
-    ${navHtml("home")}`;
-}
-
-function navHtml(active) {
-  return `
-    <nav class="subnav">
-      <a class="${active === "home" ? "active" : ""}" href="#/">🏆 Classement</a>
-      <a class="${active === "log" ? "active" : ""}" href="#/historique">🕰️ Journal</a>
-      <a class="${active === "stats" ? "active" : ""}" href="#/stats">📊 Stats</a>
-    </nav>`;
+    <div class="ranking">${list}</div>`;
 }
 
 function podiumSlot(r, pos) {
@@ -301,8 +296,7 @@ function renderActivity() {
       activity.length
         ? `<div class="history">${items}</div>`
         : `<div class="empty"><span class="big">🕰️</span>Rien dans le journal pour l’instant.<br>Chaque ajout et chaque annulation (5 👎) s’inscrira ici.</div>`
-    }
-    ${navHtml("log")}`;
+    }`;
 }
 
 // ---------------------------------------------------------------- stats
@@ -377,8 +371,7 @@ function renderStats() {
     <div class="card-block">
       <h3>🔥👜 Super Sacoches par copain</h3>
       <div class="super-list">${superRows}</div>
-    </div>
-    ${navHtml("stats")}`;
+    </div>`;
 
   $view.querySelectorAll("[data-chip]").forEach((btn) =>
     btn.addEventListener("click", () => {

@@ -297,6 +297,33 @@ button {
   margin: 16px 0 4px;
 }
 
+/* Menu principal figé en haut, toujours visible au défilement */
+.subnav-top {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+  margin: 0 0 14px;
+  padding: 6px;
+  border-radius: 20px;
+  background: rgba(40, 12, 80, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(20, 5, 50, 0.25);
+}
+
+.subnav-top a {
+  flex: 1 1 auto;
+  padding: 12px 6px;
+  font-size: 0.85rem;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.subnav-top a.active {
+  background: #fff;
+  color: var(--accent);
+}
+
 .subnav a,
 .subnav button {
   flex: 1;
