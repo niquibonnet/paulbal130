@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#6a2cf5" />
+  <title>Les Points Sacoches 👜</title>
+  <meta name="description" content="Le compteur de points sacoches officiel des 9 copains. Qui sera le plus sacoche ?" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👜</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1><a href="#/">👜 Les Points Sacoches</a></h1>
+      <button id="notif-btn" class="iconbtn" aria-pressed="false" title="Notifications" aria-label="Activer les notifications">🔔</button>
+    </header>
+    <div id="banner"></div>
+    <main id="view" aria-live="polite"></main>
+  </div>
+
+  <button id="fab" class="fab">👜 Ajouter un point</button>
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
