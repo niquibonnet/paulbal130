@@ -448,6 +448,21 @@ button {
   50% { transform: scale(1.07); }
 }
 
+.point-card.log-del {
+  background: #f6f4fa;
+  border: 1.5px dashed #cfc8e0;
+  box-shadow: none;
+}
+
+.point-card.log-del .point-note {
+  color: var(--ink-2);
+}
+
+.pts-badge.del {
+  background: #fdeaea;
+  color: var(--danger);
+}
+
 .point-note {
   margin-top: 8px;
   font-size: 0.97rem;

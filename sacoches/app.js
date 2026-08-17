@@ -3,7 +3,7 @@
 import { createBackend, DEVICE_ID } from "./db.js";
 
 export const PLAYERS = [
-  "Côme", "Paul", "Gaspard", "Erwan", "Timothée",
+  "Côme", "Paul", "Gaspard", "Erwann", "Timothée",
   "Ihsane", "Jacques", "Nico", "Vianney",
 ];
 
@@ -18,6 +18,7 @@ const SUPER_PTS = 5;
 
 let backend = null;
 let points = [];
+let activity = [];
 let knownIds = null; // null tant que le 1er snapshot n'est pas arrivé
 let lastRoute = null;
 
@@ -120,6 +121,7 @@ function render() {
 
   const mPlayer = route.match(/^#\/j\/(.+)$/);
   if (route === "#/stats") renderStats();
+  else if (route === "#/historique") renderActivity();
   else if (mPlayer) renderPlayer(decodeURIComponent(mPlayer[1]));
   else renderHome();
 
@@ -155,9 +157,15 @@ function renderHome() {
   $view.innerHTML = `
     ${podium}
     <div class="ranking">${list}</div>
+    ${navHtml("home")}`;
+}
+
+function navHtml(active) {
+  return `
     <nav class="subnav">
-      <a class="active" href="#/">🏆 Classement</a>
-      <a href="#/stats">📊 Statistiques</a>
+      <a class="${active === "home" ? "active" : ""}" href="#/">🏆 Classement</a>
+      <a class="${active === "log" ? "active" : ""}" href="#/historique">🕰️ Journal</a>
+      <a class="${active === "stats" ? "active" : ""}" href="#/stats">📊 Stats</a>
     </nav>`;
 }
 
@@ -247,6 +255,52 @@ function bindPointCards() {
   });
 }
 
+// ------------------------------------------------------------- journal
+
+function renderActivity() {
+  const items = activity
+    .map((e) => {
+      const isSuper = e.pts === SUPER_PTS;
+      if (e.type === "suppression") {
+        return `
+          <article class="point-card log-del">
+            <div class="point-top">
+              <div class="point-who">
+                <div class="point-player">🗑️ Point de ${esc(e.player)} supprimé</div>
+                <div class="point-date">${fmtDate(e.at)}</div>
+              </div>
+              <span class="pts-badge del">−${e.pts} pt${plural(e.pts)}</span>
+            </div>
+            <p class="point-note">« ${esc(e.note)} »</p>
+          </article>`;
+      }
+      return `
+        <article class="point-card ${isSuper ? "super" : ""}">
+          <div class="point-top">
+            <div class="point-who">
+              <div class="point-player">➕ <a href="#/j/${encodeURIComponent(e.player)}">${esc(e.player)}</a> ${isSuper ? "🔥👜" : ""}</div>
+              <div class="point-date">${fmtDate(e.at)}</div>
+            </div>
+            <span class="pts-badge ${isSuper ? "super" : ""}">${isSuper ? "SUPER SACOCHE +5" : `+${e.pts} pt${plural(e.pts)}`}</span>
+          </div>
+          <p class="point-note">${esc(e.note)}</p>
+        </article>`;
+    })
+    .join("");
+
+  $view.innerHTML = `
+    <div class="page-head">
+      <a class="back" href="#/" aria-label="Retour au classement">←</a>
+      <h2>🕰️ Journal</h2>
+    </div>
+    ${
+      activity.length
+        ? `<div class="history">${items}</div>`
+        : `<div class="empty"><span class="big">🕰️</span>Rien dans le journal pour l’instant.<br>Chaque ajout et chaque suppression s’inscrira ici.</div>`
+    }
+    ${navHtml("log")}`;
+}
+
 // ---------------------------------------------------------------- stats
 
 function renderStats() {
@@ -320,10 +374,7 @@ function renderStats() {
       <h3>🔥👜 Super Sacoches par copain</h3>
       <div class="super-list">${superRows}</div>
     </div>
-    <nav class="subnav">
-      <a href="#/">🏆 Classement</a>
-      <a class="active" href="#/stats">📊 Statistiques</a>
-    </nav>`;
+    ${navHtml("stats")}`;
 
   $view.querySelectorAll("[data-chip]").forEach((btn) =>
     btn.addEventListener("click", () => {
@@ -541,7 +592,7 @@ function openDeleteModal(id) {
   });
   $("#cancel").addEventListener("click", closeModal);
   $("#confirm").addEventListener("click", () => {
-    backend.deletePoint(id).catch(console.error);
+    backend.deletePoint(p).catch(console.error);
     closeModal();
     toast("🗑️ Point supprimé");
   });
@@ -625,6 +676,11 @@ async function init() {
     knownIds = new Set(newPoints.map((p) => p.id));
     points = newPoints;
     render();
+  });
+
+  backend.subscribeActivity((entries) => {
+    activity = entries;
+    if ((location.hash || "#/") === "#/historique") render();
   });
 
   window.addEventListener("hashchange", render);

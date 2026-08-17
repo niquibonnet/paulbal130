@@ -21,12 +21,14 @@ export const EMPTY_REACTIONS = { laugh: 0, up: 0, skull: 0, bag: 0 };
 
 function createLocalBackend() {
   const KEY = "sacoches-points";
+  const AKEY = "sacoches-activity";
   const channel = "BroadcastChannel" in window ? new BroadcastChannel("sacoches") : null;
   let listeners = [];
+  let actListeners = [];
 
-  const load = () => {
+  const load = (key = KEY) => {
     try {
-      return JSON.parse(localStorage.getItem(KEY)) || [];
+      return JSON.parse(localStorage.getItem(key)) || [];
     } catch {
       return [];
     }
@@ -39,6 +41,13 @@ function createLocalBackend() {
   const emit = () => {
     const points = load().sort((a, b) => b.at - a.at);
     listeners.forEach((cb) => cb(points));
+    const acts = load(AKEY).sort((a, b) => b.at - a.at);
+    actListeners.forEach((cb) => cb(acts));
+  };
+  const logActivity = (entry) => {
+    const acts = load(AKEY);
+    acts.push({ id: "act-" + Math.random().toString(36).slice(2), at: Date.now(), ...entry });
+    localStorage.setItem(AKEY, JSON.stringify(acts));
   };
   channel?.addEventListener("message", emit);
 
@@ -48,6 +57,11 @@ function createLocalBackend() {
       listeners.push(cb);
       emit();
       return () => (listeners = listeners.filter((l) => l !== cb));
+    },
+    subscribeActivity(cb) {
+      actListeners.push(cb);
+      emit();
+      return () => (actListeners = actListeners.filter((l) => l !== cb));
     },
     async addPoint({ player, pts, note }) {
       const points = load();
@@ -60,10 +74,12 @@ function createLocalBackend() {
         reactions: { ...EMPTY_REACTIONS },
         dev: DEVICE_ID,
       });
+      logActivity({ type: "ajout", player, pts, note });
       save(points);
     },
-    async deletePoint(id) {
-      save(load().filter((p) => p.id !== id));
+    async deletePoint(point) {
+      logActivity({ type: "suppression", player: point.player, pts: point.pts, note: point.note });
+      save(load().filter((p) => p.id !== point.id));
     },
     async react(id, key, delta) {
       const points = load();
@@ -100,6 +116,17 @@ async function createFirebaseBackend() {
   }
 
   const col = fs.collection(db, "points");
+  const actCol = fs.collection(db, "activity");
+
+  // Le journal ne doit jamais bloquer l'action principale : erreurs avalées.
+  const logActivity = (entry) => {
+    fs.addDoc(actCol, {
+      ...entry,
+      createdAt: fs.serverTimestamp(),
+      clientAt: Date.now(),
+      dev: DEVICE_ID,
+    }).catch((err) => console.warn("Journal non enregistré :", err));
+  };
 
   return {
     mode: "firebase",
@@ -128,6 +155,32 @@ async function createFirebaseBackend() {
         (err) => console.error("Firestore:", err)
       );
     },
+    subscribeActivity(cb) {
+      return fs.onSnapshot(
+        actCol,
+        (snap) => {
+          const entries = snap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              type: data.type,
+              player: data.player,
+              pts: data.pts,
+              note: data.note,
+              at: data.createdAt?.toMillis?.() ?? data.clientAt ?? Date.now(),
+            };
+          });
+          entries.sort((a, b) => b.at - a.at);
+          cb(entries);
+        },
+        // Tant que les règles Firestore n'autorisent pas /activity,
+        // le journal reste vide sans casser le reste de l'app.
+        (err) => {
+          console.warn("Journal indisponible :", err);
+          cb([]);
+        }
+      );
+    },
     async addPoint({ player, pts, note }) {
       await fs.addDoc(col, {
         player,
@@ -138,9 +191,11 @@ async function createFirebaseBackend() {
         reactions: { ...EMPTY_REACTIONS },
         dev: DEVICE_ID,
       });
+      logActivity({ type: "ajout", player, pts, note });
     },
-    async deletePoint(id) {
-      await fs.deleteDoc(fs.doc(db, "points", id));
+    async deletePoint(point) {
+      await fs.deleteDoc(fs.doc(db, "points", point.id));
+      logActivity({ type: "suppression", player: point.player, pts: point.pts, note: point.note });
     },
     async react(id, key, delta) {
       await fs.updateDoc(fs.doc(db, "points", id), {

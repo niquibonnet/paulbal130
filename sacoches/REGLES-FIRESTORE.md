@@ -11,13 +11,23 @@ service cloud.firestore {
     match /points/{id} {
       allow read, delete: if true;
       allow create: if
-        request.resource.data.player in ['Côme','Paul','Gaspard','Erwan','Timothée','Ihsane','Jacques','Nico','Vianney']
+        request.resource.data.player in ['Côme','Paul','Gaspard','Erwann','Timothée','Ihsane','Jacques','Nico','Vianney']
         && request.resource.data.pts in [1, 2, 3, 5]
         && request.resource.data.note is string
         && request.resource.data.note.size() > 0
         && request.resource.data.note.size() <= 300;
       allow update: if
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+    }
+    match /activity/{id} {
+      allow read: if true;
+      allow create: if
+        request.resource.data.type in ['ajout', 'suppression']
+        && request.resource.data.player in ['Côme','Paul','Gaspard','Erwann','Timothée','Ihsane','Jacques','Nico','Vianney']
+        && request.resource.data.pts in [1, 2, 3, 5]
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 300;
+      allow update, delete: if false;
     }
   }
 }
@@ -30,3 +40,5 @@ Ce que ces règles garantissent (sans comptes ni identification) :
   les points valent 1, 2, 3 ou 5, et le motif est présent (300 caractères max).
 - **Modification** limitée aux réactions emoji — impossible de changer
   après coup le joueur, les points ou le motif d'un point existant.
+- **Journal** (`activity`) : chaque ajout et suppression y est inscrit ;
+  les entrées du journal ne peuvent être ni modifiées ni supprimées.

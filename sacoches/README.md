@@ -1,7 +1,7 @@
 # 👜 Les Points Sacoches
 
 Compteur de points sacoches collaboratif des 9 copains :
-Côme, Paul, Gaspard, Erwan, Timothée, Ihsane, Jacques, Nico et Vianney.
+Côme, Paul, Gaspard, Erwann, Timothée, Ihsane, Jacques, Nico et Vianney.
 
 Accessible sur **https://paulbal130.fr/sacoches/** — site statique, aucun
 compte requis, tout le monde avec le lien peut ajouter des points.
@@ -14,6 +14,7 @@ compte requis, tout le monde avec le lien peut ajouter des points.
 - 👤 Historique complet par copain (clic sur un prénom)
 - 😂👍💀👜 Réactions emoji avec compteur sur chaque point
 - 📊 Statistiques : évolution par copain, total du groupe, moyenne, record du mois, Super Sacoches
+- 🕰️ Journal : trace de chaque ajout et de chaque suppression (infalsifiable, même après suppression du point)
 - 🔔 Notifications (nom + motif) activables par chacun
 - 🗑️ Suppression d'un point en cas d'erreur, avec confirmation
 - ⚡ Interface mobile-first, mises à jour optimistes, synchro temps réel
@@ -40,26 +41,9 @@ il faut créer un projet Firebase (gratuit, plan Spark) :
 
 Elles laissent l'accès ouvert (pas de comptes) mais n'acceptent que des
 données valides — joueurs connus, points 1/2/3/5, motif obligatoire,
-et seules les réactions sont modifiables :
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /points/{id} {
-      allow read, delete: if true;
-      allow create: if
-        request.resource.data.player in ['Côme','Paul','Gaspard','Erwan','Timothée','Ihsane','Jacques','Nico','Vianney']
-        && request.resource.data.pts in [1, 2, 3, 5]
-        && request.resource.data.note is string
-        && request.resource.data.note.size() > 0
-        && request.resource.data.note.size() <= 300;
-      allow update: if
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
-    }
-  }
-}
-```
+seules les réactions sont modifiables, et le journal est inaltérable.
+Le bloc à copier est dans **`REGLES-FIRESTORE.md`** (source unique, à
+recoller dans la console à chaque évolution des règles).
 
 ## Notes techniques
 
