@@ -497,8 +497,14 @@ function drawChart(wrap, selected) {
 
 // ---------------------------------------------------------------- modales
 
+// « Paul », « Paul et Nico », « Paul, Nico et Côme »
+function listNames(names) {
+  if (names.length <= 1) return names[0] || "";
+  return names.slice(0, -1).join(", ") + " et " + names[names.length - 1];
+}
+
 function openAddModal(preselect) {
-  let player = preselect || null;
+  const selected = new Set(preselect ? [preselect] : []);
   let pts = null;
   let author = localStorage.getItem("sacoches-me");
   if (!PLAYERS.includes(author)) author = null;
@@ -507,11 +513,11 @@ function openAddModal(preselect) {
     <div class="overlay" id="overlay">
       <div class="sheet" role="dialog" aria-modal="true" aria-label="Ajouter un point sacoche">
         <h3>👜 Nouveau point sacoche</h3>
-        <div class="sheet-label">Qui a été sacoche ?</div>
+        <div class="sheet-label">Qui a été sacoche ? (plusieurs possibles)</div>
         <div class="player-grid">${PLAYERS.map(
-          (p) => `<button class="player-chip ${p === player ? "sel" : ""}" data-p="${esc(p)}">${esc(p)}</button>`
+          (p) => `<button class="player-chip ${selected.has(p) ? "sel" : ""}" data-p="${esc(p)}">${esc(p)}</button>`
         ).join("")}</div>
-        <div class="field-error" id="err-player">Choisis un coupable !</div>
+        <div class="field-error" id="err-player">Choisis au moins un coupable !</div>
         <div class="sheet-label">Qui balance ? (sois honnête — 5 👎 du groupe et c’est toi qui prends +1)</div>
         <div class="player-grid">${PLAYERS.map(
           (p) => `<button class="player-chip ${p === author ? "sel" : ""}" data-a="${esc(p)}">${esc(p)}</button>`
@@ -545,9 +551,11 @@ function openAddModal(preselect) {
 
   $modalRoot.querySelectorAll("[data-p]").forEach((btn) =>
     btn.addEventListener("click", () => {
-      player = btn.dataset.p;
-      $modalRoot.querySelectorAll("[data-p]").forEach((b) => b.classList.toggle("sel", b === btn));
-      $("#err-player").classList.remove("show");
+      const name = btn.dataset.p;
+      if (selected.has(name)) selected.delete(name);
+      else selected.add(name);
+      btn.classList.toggle("sel", selected.has(name));
+      if (selected.size) $("#err-player").classList.remove("show");
     })
   );
   $modalRoot.querySelectorAll("[data-a]").forEach((btn) =>
@@ -569,23 +577,26 @@ function openAddModal(preselect) {
   $("#submit").addEventListener("click", () => {
     const note = $("#note").value.trim();
     let ok = true;
-    if (!player) { $("#err-player").classList.add("show"); ok = false; }
+    if (!selected.size) { $("#err-player").classList.add("show"); ok = false; }
     if (!author) { $("#err-author").classList.add("show"); ok = false; }
     if (!pts) { $("#err-pts").classList.add("show"); ok = false; }
     if (!note) { $("#err-note").classList.add("show"); ok = false; }
     if (!ok) return;
 
-    // optimiste : on n'attend pas le serveur
-    backend.addPoint({ player, pts, note, author }).catch((err) => {
-      console.error(err);
-      toast("⚠️ Échec de l’envoi, réessaie");
-    });
+    // optimiste : on n'attend pas le serveur — un point par coupable
+    const names = PLAYERS.filter((p) => selected.has(p));
+    for (const player of names) {
+      backend.addPoint({ player, pts, note, author }).catch((err) => {
+        console.error(err);
+        toast(`⚠️ Échec de l’envoi pour ${player}, réessaie`);
+      });
+    }
     closeModal();
     if (pts === SUPER_PTS) {
       confetti();
-      toast(`🔥👜 SUPER SACOCHE pour ${player} ! +5 points !`);
+      toast(`🔥👜 SUPER SACOCHE pour ${listNames(names)} ! +5 points chacun !`);
     } else {
-      toast(`👜 +${pts} pt${plural(pts)} pour ${player} !`);
+      toast(`👜 +${pts} pt${plural(pts)} pour ${listNames(names)}${names.length > 1 ? " (chacun)" : ""} !`);
     }
   });
 }
