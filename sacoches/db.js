@@ -15,7 +15,15 @@ export const DEVICE_ID = (() => {
   return id;
 })();
 
-export const EMPTY_REACTIONS = { laugh: 0, up: 0, skull: 0, bag: 0 };
+export const EMPTY_REACTIONS = { laugh: 0, up: 0, down: 0, bag: 0 };
+
+export const DOWNVOTE_THRESHOLD = 5;
+
+// Note du point automatique quand un point récolte 5 👎
+function penaltyNote(point) {
+  const excerpt = point.note.length > 120 ? point.note.slice(0, 120) + "…" : point.note;
+  return `⚖️ Sanction automatique : 5 👎 du groupe sur son point contre ${point.player} (« ${excerpt} »)`;
+}
 
 // ---------------------------------------------------------------- local
 
@@ -63,13 +71,14 @@ function createLocalBackend() {
       emit();
       return () => (actListeners = actListeners.filter((l) => l !== cb));
     },
-    async addPoint({ player, pts, note }) {
+    async addPoint({ player, pts, note, author }) {
       const points = load();
       points.push({
         id: "loc-" + Math.random().toString(36).slice(2),
         player,
         pts,
         note,
+        ...(author ? { author } : {}),
         at: Date.now(),
         reactions: { ...EMPTY_REACTIONS },
         dev: DEVICE_ID,
@@ -84,10 +93,21 @@ function createLocalBackend() {
     async react(id, key, delta) {
       const points = load();
       const p = points.find((p) => p.id === id);
-      if (!p) return;
+      if (!p) return null;
       p.reactions = { ...EMPTY_REACTIONS, ...p.reactions };
       p.reactions[key] = Math.max(0, (p.reactions[key] || 0) + delta);
+      // 5 pouces rouges → l'auteur du point prend 1 point sacoche
+      let penalty = null;
+      if (key === "down" && delta > 0 && p.reactions.down >= DOWNVOTE_THRESHOLD &&
+          !p.penalized && p.author) {
+        p.penalized = true;
+        penalty = { author: p.author };
+      }
       save(points);
+      if (penalty) {
+        await this.addPoint({ player: penalty.author, pts: 1, note: penaltyNote(p) });
+      }
+      return penalty;
     },
   };
 }
@@ -141,6 +161,8 @@ async function createFirebaseBackend() {
               player: data.player,
               pts: data.pts,
               note: data.note,
+              author: data.author || "",
+              penalized: !!data.penalized,
               // serverTimestamp est null le temps de l'aller-retour :
               // clientAt permet l'affichage optimiste immédiat.
               at: data.createdAt?.toMillis?.() ?? data.clientAt ?? Date.now(),
@@ -181,11 +203,12 @@ async function createFirebaseBackend() {
         }
       );
     },
-    async addPoint({ player, pts, note }) {
+    async addPoint({ player, pts, note, author }) {
       await fs.addDoc(col, {
         player,
         pts,
         note,
+        ...(author ? { author } : {}),
         createdAt: fs.serverTimestamp(),
         clientAt: Date.now(),
         reactions: { ...EMPTY_REACTIONS },
@@ -198,9 +221,33 @@ async function createFirebaseBackend() {
       logActivity({ type: "suppression", player: point.player, pts: point.pts, note: point.note });
     },
     async react(id, key, delta) {
-      await fs.updateDoc(fs.doc(db, "points", id), {
-        ["reactions." + key]: fs.increment(delta),
+      const ref = fs.doc(db, "points", id);
+      if (key !== "down" || delta < 0) {
+        await fs.updateDoc(ref, { ["reactions." + key]: fs.increment(delta) });
+        return null;
+      }
+      // Pouce rouge : transaction pour détecter le seuil de 5 exactement
+      // une fois, même si deux appareils votent en même temps.
+      let penalty = null;
+      await fs.runTransaction(db, async (tx) => {
+        penalty = null;
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const count = (data.reactions?.down || 0) + 1;
+        const triggers = count >= DOWNVOTE_THRESHOLD && !data.penalized && data.author;
+        tx.update(ref, {
+          "reactions.down": fs.increment(1),
+          ...(triggers ? { penalized: true } : {}),
+        });
+        if (triggers) {
+          penalty = { author: data.author, point: { player: data.player, note: data.note } };
+        }
       });
+      if (penalty) {
+        await this.addPoint({ player: penalty.author, pts: 1, note: penaltyNote(penalty.point) });
+      }
+      return penalty;
     },
   };
 }

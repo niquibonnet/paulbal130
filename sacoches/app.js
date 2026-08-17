@@ -10,7 +10,7 @@ export const PLAYERS = [
 const REACTIONS = [
   { key: "laugh", emoji: "😂" },
   { key: "up", emoji: "👍" },
-  { key: "skull", emoji: "💀" },
+  { key: "down", emoji: "👎" },
   { key: "bag", emoji: "👜" },
 ];
 
@@ -225,7 +225,7 @@ function pointCard(p, { showName = false } = {}) {
               ? `<a href="#/j/${encodeURIComponent(p.player)}">${esc(p.player)}</a>`
               : esc(p.player)
           } ${isSuper ? "🔥👜" : ""}</div>
-          <div class="point-date">${fmtDate(p.at)}</div>
+          <div class="point-date">${fmtDate(p.at)}${p.author ? ` · balancé par ${esc(p.author)}` : ""}</div>
         </div>
         <span class="pts-badge ${isSuper ? "super" : ""}">${isSuper ? "SUPER SACOCHE +5" : `+${p.pts} pt${plural(p.pts)}`}</span>
       </div>
@@ -243,7 +243,15 @@ function bindPointCards() {
       const { react: key, id } = btn.dataset;
       const on = !(myReactions()[id]?.[key]);
       setMyReaction(id, key, on);
-      backend.react(id, key, on ? 1 : -1).catch(console.error);
+      backend
+        .react(id, key, on ? 1 : -1)
+        .then((penalty) => {
+          if (penalty) {
+            confetti();
+            toast(`⚖️ 5 👎 du groupe : ${penalty.author} prend +1 point sacoche !`);
+          }
+        })
+        .catch(console.error);
       // rendu optimiste immédiat
       const p = points.find((p) => p.id === id);
       if (p) p.reactions[key] = Math.max(0, (p.reactions[key] || 0) + (on ? 1 : -1));
@@ -492,6 +500,8 @@ function drawChart(wrap, selected) {
 function openAddModal(preselect) {
   let player = preselect || null;
   let pts = null;
+  let author = localStorage.getItem("sacoches-me");
+  if (!PLAYERS.includes(author)) author = null;
 
   $modalRoot.innerHTML = `
     <div class="overlay" id="overlay">
@@ -502,6 +512,11 @@ function openAddModal(preselect) {
           (p) => `<button class="player-chip ${p === player ? "sel" : ""}" data-p="${esc(p)}">${esc(p)}</button>`
         ).join("")}</div>
         <div class="field-error" id="err-player">Choisis un coupable !</div>
+        <div class="sheet-label">Qui balance ? (sois honnête — 5 👎 du groupe et c’est toi qui prends +1)</div>
+        <div class="player-grid">${PLAYERS.map(
+          (p) => `<button class="player-chip ${p === author ? "sel" : ""}" data-a="${esc(p)}">${esc(p)}</button>`
+        ).join("")}</div>
+        <div class="field-error" id="err-author">Dis-nous qui balance !</div>
         <div class="sheet-label">Niveau de gravité</div>
         <div class="gravity-grid">
           <button class="gravity-btn" data-g="1">+1<small>léger</small></button>
@@ -535,6 +550,14 @@ function openAddModal(preselect) {
       $("#err-player").classList.remove("show");
     })
   );
+  $modalRoot.querySelectorAll("[data-a]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      author = btn.dataset.a;
+      localStorage.setItem("sacoches-me", author);
+      $modalRoot.querySelectorAll("[data-a]").forEach((b) => b.classList.toggle("sel", b === btn));
+      $("#err-author").classList.remove("show");
+    })
+  );
   $modalRoot.querySelectorAll("[data-g]").forEach((btn) =>
     btn.addEventListener("click", () => {
       pts = Number(btn.dataset.g);
@@ -547,12 +570,13 @@ function openAddModal(preselect) {
     const note = $("#note").value.trim();
     let ok = true;
     if (!player) { $("#err-player").classList.add("show"); ok = false; }
+    if (!author) { $("#err-author").classList.add("show"); ok = false; }
     if (!pts) { $("#err-pts").classList.add("show"); ok = false; }
     if (!note) { $("#err-note").classList.add("show"); ok = false; }
     if (!ok) return;
 
     // optimiste : on n'attend pas le serveur
-    backend.addPoint({ player, pts, note }).catch((err) => {
+    backend.addPoint({ player, pts, note, author }).catch((err) => {
       console.error(err);
       toast("⚠️ Échec de l’envoi, réessaie");
     });

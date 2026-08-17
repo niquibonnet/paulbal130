@@ -12,7 +12,8 @@ compte requis, tout le monde avec le lien peut ajouter des points.
 - ➕ Ajout de point ouvert à tous : gravité 1 / 2 / 3, ou **SUPER SACOCHE +5** 🔥👜
 - 📝 Motif obligatoire, date automatique
 - 👤 Historique complet par copain (clic sur un prénom)
-- 😂👍💀👜 Réactions emoji avec compteur sur chaque point
+- 😂👍👎👜 Réactions emoji avec compteur sur chaque point
+- ⚖️ Tribunal populaire : 5 👎 sur un point → son auteur (« qui balance ») prend automatiquement 1 point sacoche
 - 📊 Statistiques : évolution par copain, total du groupe, moyenne, record du mois, Super Sacoches
 - 🕰️ Journal : trace de chaque ajout et de chaque suppression (infalsifiable, même après suppression du point)
 - 🔔 Notifications (nom + motif) activables par chacun
