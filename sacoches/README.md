@@ -13,11 +13,10 @@ compte requis, tout le monde avec le lien peut ajouter des points.
 - 📝 Motif obligatoire, date automatique
 - 👤 Historique complet par copain (clic sur un prénom)
 - 😂👍👎👜 Réactions emoji avec compteur sur chaque point
-- ⚖️ Tribunal populaire : 5 👎 sur un point → son auteur (« qui balance ») prend automatiquement 1 point sacoche
+- ⚖️ Tribunal populaire : 5 👎 sur un point → le point est annulé automatiquement et l'annulation est tracée au journal (seule façon de retirer un point — pas de suppression manuelle)
 - 📊 Statistiques : évolution par copain, total du groupe, moyenne, record du mois, Super Sacoches
-- 🕰️ Journal : trace de chaque ajout et de chaque suppression (infalsifiable, même après suppression du point)
+- 🕰️ Journal : trace de chaque ajout et de chaque annulation (infalsifiable, même après disparition du point)
 - 🔔 Notifications (nom + motif) activables par chacun
-- 🗑️ Suppression d'un point en cas d'erreur, avec confirmation
 - ⚡ Interface mobile-first, mises à jour optimistes, synchro temps réel
 
 ## ⚠️ Activer la synchro temps réel (à faire une fois, ~5 min, gratuit)

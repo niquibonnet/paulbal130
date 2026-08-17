@@ -17,13 +17,8 @@ export const DEVICE_ID = (() => {
 
 export const EMPTY_REACTIONS = { laugh: 0, up: 0, down: 0, bag: 0 };
 
+// 5 pouces rouges → le point est annulé (seule façon de retirer un point)
 export const DOWNVOTE_THRESHOLD = 5;
-
-// Note du point automatique quand un point récolte 5 👎
-function penaltyNote(point) {
-  const excerpt = point.note.length > 120 ? point.note.slice(0, 120) + "…" : point.note;
-  return `⚖️ Sanction automatique : 5 👎 du groupe sur son point contre ${point.player} (« ${excerpt} »)`;
-}
 
 // ---------------------------------------------------------------- local
 
@@ -86,28 +81,20 @@ function createLocalBackend() {
       logActivity({ type: "ajout", player, pts, note });
       save(points);
     },
-    async deletePoint(point) {
-      logActivity({ type: "suppression", player: point.player, pts: point.pts, note: point.note });
-      save(load().filter((p) => p.id !== point.id));
-    },
     async react(id, key, delta) {
       const points = load();
       const p = points.find((p) => p.id === id);
       if (!p) return null;
       p.reactions = { ...EMPTY_REACTIONS, ...p.reactions };
       p.reactions[key] = Math.max(0, (p.reactions[key] || 0) + delta);
-      // 5 pouces rouges → l'auteur du point prend 1 point sacoche
-      let penalty = null;
-      if (key === "down" && delta > 0 && p.reactions.down >= DOWNVOTE_THRESHOLD &&
-          !p.penalized && p.author) {
-        p.penalized = true;
-        penalty = { author: p.author };
+      // 5 pouces rouges → le point est annulé et tracé au journal
+      if (key === "down" && delta > 0 && p.reactions.down >= DOWNVOTE_THRESHOLD) {
+        logActivity({ type: "annulation", player: p.player, pts: p.pts, note: p.note });
+        save(points.filter((q) => q.id !== id));
+        return { removed: true, player: p.player };
       }
       save(points);
-      if (penalty) {
-        await this.addPoint({ player: penalty.author, pts: 1, note: penaltyNote(p) });
-      }
-      return penalty;
+      return null;
     },
   };
 }
@@ -216,10 +203,6 @@ async function createFirebaseBackend() {
       });
       logActivity({ type: "ajout", player, pts, note });
     },
-    async deletePoint(point) {
-      await fs.deleteDoc(fs.doc(db, "points", point.id));
-      logActivity({ type: "suppression", player: point.player, pts: point.pts, note: point.note });
-    },
     async react(id, key, delta) {
       const ref = fs.doc(db, "points", id);
       if (key !== "down" || delta < 0) {
@@ -228,26 +211,28 @@ async function createFirebaseBackend() {
       }
       // Pouce rouge : transaction pour détecter le seuil de 5 exactement
       // une fois, même si deux appareils votent en même temps.
-      let penalty = null;
+      let removal = null;
       await fs.runTransaction(db, async (tx) => {
-        penalty = null;
+        removal = null;
         const snap = await tx.get(ref);
         if (!snap.exists()) return;
         const data = snap.data();
         const count = (data.reactions?.down || 0) + 1;
-        const triggers = count >= DOWNVOTE_THRESHOLD && !data.penalized && data.author;
+        const triggers = count >= DOWNVOTE_THRESHOLD && !data.removed;
         tx.update(ref, {
           "reactions.down": fs.increment(1),
-          ...(triggers ? { penalized: true } : {}),
+          ...(triggers ? { removed: true } : {}),
         });
         if (triggers) {
-          penalty = { author: data.author, point: { player: data.player, note: data.note } };
+          removal = { player: data.player, pts: data.pts, note: data.note };
         }
       });
-      if (penalty) {
-        await this.addPoint({ player: penalty.author, pts: 1, note: penaltyNote(penalty.point) });
+      if (removal) {
+        await fs.deleteDoc(ref).catch((err) => console.warn("Annulation :", err));
+        logActivity({ type: "annulation", player: removal.player, pts: removal.pts, note: removal.note });
+        return { removed: true, player: removal.player };
       }
-      return penalty;
+      return null;
     },
   };
 }

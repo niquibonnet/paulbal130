@@ -9,7 +9,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /points/{id} {
-      allow read, delete: if true;
+      allow read: if true;
       allow create: if
         request.resource.data.player in ['Côme','Paul','Gaspard','Erwann','Timothée','Ihsane','Jacques','Nico','Vianney']
         && request.resource.data.pts in [1, 2, 3, 5]
@@ -19,12 +19,14 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(['author'])
             || request.resource.data.author in ['Côme','Paul','Gaspard','Erwann','Timothée','Ihsane','Jacques','Nico','Vianney']);
       allow update: if
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'penalized']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'removed']);
+      // seule façon de retirer un point : le vote du groupe à 5 pouces rouges
+      allow delete: if resource.data.reactions.down >= 5;
     }
     match /activity/{id} {
       allow read: if true;
       allow create: if
-        request.resource.data.type in ['ajout', 'suppression']
+        request.resource.data.type in ['ajout', 'annulation']
         && request.resource.data.player in ['Côme','Paul','Gaspard','Erwann','Timothée','Ihsane','Jacques','Nico','Vianney']
         && request.resource.data.pts in [1, 2, 3, 5]
         && request.resource.data.note is string
@@ -37,13 +39,14 @@ service cloud.firestore {
 
 Ce que ces règles garantissent (sans comptes ni identification) :
 
-- **Lecture et suppression ouvertes** à tous ceux qui ont le lien (voulu).
+- **Lecture ouverte** à tous ceux qui ont le lien (voulu).
 - **Création** acceptée uniquement si le joueur est l'un des 9 copains,
   les points valent 1, 2, 3 ou 5, et le motif est présent (300 caractères max).
 - **Modification** limitée aux réactions emoji — impossible de changer
   après coup le joueur, les points ou le motif d'un point existant.
-- **Journal** (`activity`) : chaque ajout et suppression y est inscrit ;
-  les entrées du journal ne peuvent être ni modifiées ni supprimées.
+- **Pas de suppression manuelle** : la base ne laisse retirer un point que
+  s'il a récolté au moins 5 👎 — c'est le groupe qui décide, personne d'autre.
+- **Journal** (`activity`) : chaque ajout et chaque annulation à 5 👎 y est
+  inscrit ; les entrées ne peuvent être ni modifiées ni supprimées.
 - **Auteur** (`author`) : celui qui balance le point, obligatoirement l'un
-  des 9 copains ; `penalized` marque qu'un point a déjà déclenché la
-  sanction des 5 👎 (pour qu'elle ne tombe qu'une fois).
+  des 9 copains.

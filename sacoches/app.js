@@ -230,10 +230,7 @@ function pointCard(p, { showName = false } = {}) {
         <span class="pts-badge ${isSuper ? "super" : ""}">${isSuper ? "SUPER SACOCHE +5" : `+${p.pts} pt${plural(p.pts)}`}</span>
       </div>
       <p class="point-note">${esc(p.note)}</p>
-      <div class="point-actions">
-        ${reactions}
-        <button class="del-btn" data-del="${esc(p.id)}" aria-label="Supprimer ce point">🗑️</button>
-      </div>
+      <div class="point-actions">${reactions}</div>
     </article>`;
 }
 
@@ -245,10 +242,9 @@ function bindPointCards() {
       setMyReaction(id, key, on);
       backend
         .react(id, key, on ? 1 : -1)
-        .then((penalty) => {
-          if (penalty) {
-            confetti();
-            toast(`⚖️ 5 👎 du groupe : ${penalty.author} prend +1 point sacoche !`);
+        .then((res) => {
+          if (res?.removed) {
+            toast(`⚖️ 5 👎 du groupe : le point de ${res.player} est annulé !`);
           }
         })
         .catch(console.error);
@@ -258,9 +254,6 @@ function bindPointCards() {
       render();
     });
   });
-  $view.querySelectorAll("[data-del]").forEach((btn) => {
-    btn.addEventListener("click", () => openDeleteModal(btn.dataset.del));
-  });
 }
 
 // ------------------------------------------------------------- journal
@@ -269,12 +262,15 @@ function renderActivity() {
   const items = activity
     .map((e) => {
       const isSuper = e.pts === SUPER_PTS;
-      if (e.type === "suppression") {
+      if (e.type === "annulation" || e.type === "suppression") {
+        const label = e.type === "annulation"
+          ? `⚖️ Point de ${esc(e.player)} annulé par le groupe (5 👎)`
+          : `🗑️ Point de ${esc(e.player)} supprimé`;
         return `
           <article class="point-card log-del">
             <div class="point-top">
               <div class="point-who">
-                <div class="point-player">🗑️ Point de ${esc(e.player)} supprimé</div>
+                <div class="point-player">${label}</div>
                 <div class="point-date">${fmtDate(e.at)}</div>
               </div>
               <span class="pts-badge del">−${e.pts} pt${plural(e.pts)}</span>
@@ -304,7 +300,7 @@ function renderActivity() {
     ${
       activity.length
         ? `<div class="history">${items}</div>`
-        : `<div class="empty"><span class="big">🕰️</span>Rien dans le journal pour l’instant.<br>Chaque ajout et chaque suppression s’inscrira ici.</div>`
+        : `<div class="empty"><span class="big">🕰️</span>Rien dans le journal pour l’instant.<br>Chaque ajout et chaque annulation (5 👎) s’inscrira ici.</div>`
     }
     ${navHtml("log")}`;
 }
@@ -518,7 +514,7 @@ function openAddModal(preselect) {
           (p) => `<button class="player-chip ${selected.has(p) ? "sel" : ""}" data-p="${esc(p)}">${esc(p)}</button>`
         ).join("")}</div>
         <div class="field-error" id="err-player">Choisis au moins un coupable !</div>
-        <div class="sheet-label">Qui balance ? (sois honnête — 5 👎 du groupe et c’est toi qui prends +1)</div>
+        <div class="sheet-label">Qui balance ?</div>
         <div class="player-grid">${PLAYERS.map(
           (p) => `<button class="player-chip ${p === author ? "sel" : ""}" data-a="${esc(p)}">${esc(p)}</button>`
         ).join("")}</div>
@@ -598,38 +594,6 @@ function openAddModal(preselect) {
     } else {
       toast(`👜 +${pts} pt${plural(pts)} pour ${listNames(names)}${names.length > 1 ? " (chacun)" : ""} !`);
     }
-  });
-}
-
-function openDeleteModal(id) {
-  const p = points.find((p) => p.id === id);
-  if (!p) return;
-  $modalRoot.innerHTML = `
-    <div class="overlay" id="overlay">
-      <div class="sheet" role="dialog" aria-modal="true" aria-label="Supprimer un point">
-        <h3>🗑️ Supprimer ce point ?</h3>
-        <p style="line-height:1.5">
-          <strong>${esc(p.player)}</strong> — +${p.pts} pt${plural(p.pts)}<br>
-          <span style="color:var(--ink-2)">« ${esc(p.note)} »</span>
-        </p>
-        <p style="margin-top:10px;font-size:0.85rem;color:var(--ink-2)">
-          À n’utiliser qu’en cas d’erreur. La suppression est définitive pour tout le monde.
-        </p>
-        <div class="sheet-actions">
-          <button class="btn btn-ghost" id="cancel">Non, il le mérite</button>
-          <button class="btn btn-danger" id="confirm">Oui, supprimer</button>
-        </div>
-      </div>
-    </div>`;
-  const $ = (sel) => $modalRoot.querySelector(sel);
-  $("#overlay").addEventListener("click", (e) => {
-    if (e.target.id === "overlay") closeModal();
-  });
-  $("#cancel").addEventListener("click", closeModal);
-  $("#confirm").addEventListener("click", () => {
-    backend.deletePoint(p).catch(console.error);
-    closeModal();
-    toast("🗑️ Point supprimé");
   });
 }
 

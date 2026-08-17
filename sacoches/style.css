@@ -506,19 +506,6 @@ button {
   font-size: 0.85rem;
 }
 
-.del-btn {
-  margin-left: auto;
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 12px;
-  font-size: 1.05rem;
-  opacity: 0.55;
-}
-
-.del-btn:active {
-  opacity: 1;
-}
-
 /* ------------------------------------------------ modales */
 
 .overlay {
