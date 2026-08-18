@@ -1,0 +1,18 @@
+{
+  "name": "Les Points Sacoches",
+  "short_name": "Sacoches",
+  "description": "Le compteur de points sacoches officiel des 9 copains. Qui sera le plus sacoche ?",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#6a2cf5",
+  "background_color": "#6a2cf5",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
